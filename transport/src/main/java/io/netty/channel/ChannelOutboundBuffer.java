@@ -298,6 +298,7 @@ public final class ChannelOutboundBuffer {
                     logger.warn("Failed to release a ByteBuf: {}", msg, t);
                 }
             } else {
+                // 释放
                 ReferenceCountUtil.safeRelease(msg);
             }
             safeSuccess(promise);

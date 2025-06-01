@@ -446,6 +446,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         if (alloc.isDirectBufferPooled()) {
             ByteBuf directBuf = alloc.directBuffer(readableBytes);
             directBuf.writeBytes(buf, buf.readerIndex(), readableBytes);
+            // 释放内存
             ReferenceCountUtil.safeRelease(buf);
             return directBuf;
         }
@@ -453,6 +454,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         final ByteBuf directBuf = ByteBufUtil.threadLocalDirectBuffer();
         if (directBuf != null) {
             directBuf.writeBytes(buf, buf.readerIndex(), readableBytes);
+            // 释放内存
             ReferenceCountUtil.safeRelease(buf);
             return directBuf;
         }
