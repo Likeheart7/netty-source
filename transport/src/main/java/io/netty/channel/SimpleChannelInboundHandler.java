@@ -38,6 +38,7 @@ import io.netty.util.internal.TypeParameterMatcher;
  * Be aware that depending of the constructor parameters it will release all handled messages by passing them to
  * {@link ReferenceCountUtil#release(Object)}. In this case you may need to use
  * {@link ReferenceCountUtil#retain(Object)} if you pass the object to the next handler in the {@link ChannelPipeline}.
+ * 如果 msg 不是类型 I 的实例，它会跳过 channelRead0 方法，并将这个消息自动传递给 ChannelPipeline 中的下一个 ChannelInboundHandler。
  */
 public abstract class SimpleChannelInboundHandler<I> extends ChannelInboundHandlerAdapter {
 
