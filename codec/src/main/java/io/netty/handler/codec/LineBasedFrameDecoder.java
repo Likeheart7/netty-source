@@ -22,6 +22,9 @@ import io.netty.util.ByteProcessor;
 import java.util.List;
 
 /**
+ * 以换行符为结束标志的解码器（/n or /r/n）
+ * 如果超出maxLength就抛出异常并抛弃前面的流
+ * 该Decoder会遍历ByteBuf的每一个字节，如果有/n或/r/n，就以此为结束位置，从可读索引到结束位置的区间的字节就组成了一行
  * A decoder that splits the received {@link ByteBuf}s on line endings.
  * <p>
  * Both {@code "\n"} and {@code "\r\n"} are handled.
