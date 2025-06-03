@@ -72,6 +72,8 @@ import static java.lang.Integer.MAX_VALUE;
  * Some methods such as {@link ByteBuf#readBytes(int)} will cause a memory leak if the returned buffer
  * is not released or added to the <tt>out</tt> {@link List}. Use derived buffers like {@link ByteBuf#readSlice(int)}
  * to avoid leaking memory.
+ *
+ * 一般涉及到处理粘包、拆包和协议解析的Decoder会继承该类
  */
 public abstract class ByteToMessageDecoder extends ChannelInboundHandlerAdapter {
 
