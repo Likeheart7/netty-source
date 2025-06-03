@@ -87,6 +87,8 @@ import io.netty.util.AsciiString;
  * <p>
  * This recommendation stands even when both peers in the HTTP exchange are trusted,
  * as it helps with defence-in-depth.
+ *
+ * http请求解码器
  */
 public class HttpRequestDecoder extends HttpObjectDecoder {
 
