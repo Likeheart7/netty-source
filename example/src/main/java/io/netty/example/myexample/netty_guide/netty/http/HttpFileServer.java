@@ -163,8 +163,10 @@ public class HttpFileServer {
          * 设置Content-type头
          */
         private void setContentTypeHeader(DefaultHttpResponse response, File file) {
+            // 这种方式会添加content-type: application/octet-stream,让浏览器只强制下载文件
             MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
             response.headers().set(CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath()));
+//            response.headers().set(CONTENT_TYPE, "text/plain"); // 为了能直接在浏览器将.java文件作为文本访问
         }
 
         /**
