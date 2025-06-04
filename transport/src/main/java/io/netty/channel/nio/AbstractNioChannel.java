@@ -50,7 +50,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     private static final InternalLogger logger =
             InternalLoggerFactory.getInstance(AbstractNioChannel.class);
 
+    // 封装的原生Channel
     private final SelectableChannel ch;
+    // 创建时赋值，NioServerSocketChannel：OP_ACCEPT
     protected final int readInterestOp;
     volatile SelectionKey selectionKey;
     boolean readPending;
