@@ -24,6 +24,7 @@ import io.netty.util.internal.TypeParameterMatcher;
 import java.util.List;
 
 /**
+ * 系统编解码框架
  * A Codec for on-the-fly encoding/decoding of bytes to messages and vise-versa.
  *
  * This can be thought of as a combination of {@link ByteToMessageDecoder} and {@link MessageToByteEncoder}.

@@ -42,6 +42,7 @@ import java.util.List;
  *
  * // Encoder
  * pipeline.addLast("base64Encoder", new {@link Base64Encoder}());
+ * Base64解码器
  * </pre>
  */
 @Sharable

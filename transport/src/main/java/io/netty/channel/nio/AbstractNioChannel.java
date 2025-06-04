@@ -382,6 +382,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
+                // 将NioServerSocketChannel注册到EventLoop的Selector上
+                // ops: 0表示只注册，不监听任何操作
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {
@@ -416,6 +418,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
         final int interestOps = selectionKey.interestOps();
         if ((interestOps & readInterestOp) == 0) {
+            // 之前注册感兴趣ops是0，会在这里修改，如果是服务端，创建时，readInterestOp就是OP_ACCEPT (1<<4)
             selectionKey.interestOps(interestOps | readInterestOp);
         }
     }

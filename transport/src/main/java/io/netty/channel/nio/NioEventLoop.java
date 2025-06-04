@@ -289,6 +289,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     /**
+     * 将Channel注册到EventLoop的Selector上
      * Registers an arbitrary {@link SelectableChannel}, not necessarily created by Netty, to the {@link Selector}
      * of this event loop.  Once the specified {@link SelectableChannel} is registered, the specified {@code task} will
      * be executed by this event loop when the {@link SelectableChannel} is ready.
@@ -308,9 +309,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             throw new IllegalStateException("event loop shut down");
         }
 
+        // 如果是EventLoop自身发起的操作，则不可能有线程安全问题，直接注册
         if (inEventLoop()) {
             register0(ch, interestOps, task);
-        } else {
+        } else {    // 其他线程发起操作，封装成Task放入消息队列中异步执行
             try {
                 // Offload to the EventLoop as otherwise java.nio.channels.spi.AbstractSelectableChannel.register
                 // may block for a long time while trying to obtain an internal lock that may be hold while selecting.
@@ -329,6 +331,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private void register0(SelectableChannel ch, int interestOps, NioTask<?> task) {
         try {
+            // 注册到原生的Selector上去
             ch.register(unwrappedSelector, interestOps, task);
         } catch (Exception e) {
             throw new EventLoopException("failed to register a channel", e);
@@ -901,6 +904,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
         // Timeout will only be 0 if deadline is within 5 microsecs
         long timeoutMillis = deadlineToDelayNanos(deadlineNanos + 995000L) / 1000000L;
+        // 根据超时时间决定调用selectNow直接返回还是select指定时间
         return timeoutMillis <= 0 ? selector.selectNow() : selector.select(timeoutMillis);
     }
 

@@ -165,6 +165,7 @@ import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
  * based on monitoring and debugging of it.
  * For more details see
  * <a href="https://github.com/netty/netty/issues/832">#832</a> in our issue tracker.
+ * SSL安全认证
  */
 public class SslHandler extends ByteToMessageDecoder implements ChannelOutboundHandler {
     private static final InternalLogger logger =

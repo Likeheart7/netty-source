@@ -61,6 +61,7 @@ import java.util.concurrent.TimeUnit;
  * <p>So the expected usage of those methods are to be used not too often,
  * accordingly to the traffic shaping configuration.</p></li>
  * </ul>
+ * 流量整形
  */
 public class ChannelTrafficShapingHandler extends AbstractTrafficShapingHandler {
     private final ArrayDeque<ToSend> messagesQueue = new ArrayDeque<ToSend>();

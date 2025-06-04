@@ -181,6 +181,7 @@ import io.netty.channel.ChannelHandlerContext;
  * | HDR1 | Length | HDR2 | Actual Content |----->| HDR2 | Actual Content |
  * | 0xCA | 0x0010 | 0xFE | "HELLO, WORLD" |      | 0xFE | "HELLO, WORLD" |
  * +------+--------+------+----------------+      +------+----------------+
+ * 通用基于长度属性的半包解码器
  * </pre>
  * @see LengthFieldPrepender
  */

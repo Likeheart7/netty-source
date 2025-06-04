@@ -865,6 +865,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     @Override
     public final ChannelPipeline fireChannelRead(Object msg) {
+        // 执行netty系统ChannelHandler和用户添加定制的ChannelHandler，ChannelHandler再根据网络事件的类型，调度并执行
         AbstractChannelHandlerContext.invokeChannelRead(head, msg);
         return this;
     }

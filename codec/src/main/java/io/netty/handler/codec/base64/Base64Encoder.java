@@ -38,6 +38,7 @@ import java.util.List;
  *
  * // Encoder
  * pipeline.addLast("base64Encoder", new {@link Base64Encoder}());
+ * base64编码器
  * </pre>
  */
 @Sharable

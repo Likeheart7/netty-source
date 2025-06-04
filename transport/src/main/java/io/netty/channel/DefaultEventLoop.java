@@ -46,6 +46,9 @@ public class DefaultEventLoop extends SingleThreadEventLoop {
         super(parent, executor, true);
     }
 
+    /**
+     * Selector的轮询操作由本方法驱动，可以看到是在一个无限循环中执行
+     */
     @Override
     protected void run() {
         for (;;) {

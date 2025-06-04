@@ -18,6 +18,9 @@ package io.netty.channel;
 import io.netty.util.concurrent.OrderedEventExecutor;
 
 /**
+ * 负责处理所有注册到本线程Selector上的Channel，默认实现见{@link DefaultEventLoop}
+ * 包括自定义的Task和定时任务Task也统一由EventLoop处理，实现了线程模型的统一
+ * 并且不存在EventLoop线程启动其他线程执行异步任务的情况，所以避免了多线程和并发竞争的问题
  * Will handle all the I/O operations for a {@link Channel} once registered.
  *
  * One {@link EventLoop} instance will usually handle more than one {@link Channel} but this may depend on

@@ -174,6 +174,7 @@ import java.lang.annotation.Target;
  * {@link ChannelPipeline} to find out more about inbound and outbound operations,
  * what fundamental differences they have, how they flow in a  pipeline,  and how to handle
  * the operation in your application.
+ * 用于定制处理逻辑和扩展的关键接口，类似消息编解码、心跳、安全认证、TSL/SSL认证，流量控制、流量整形都可以基于此完成
  */
 public interface ChannelHandler {
 

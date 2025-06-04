@@ -91,6 +91,7 @@ import java.util.concurrent.TimeUnit;
  * ...
  * bootstrap.childHandler(new MyChannelInitializer());
  * ...
+ * 链路空闲检测
  * </pre>
  *
  * @see ReadTimeoutHandler

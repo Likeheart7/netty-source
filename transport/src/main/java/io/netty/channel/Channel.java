@@ -110,6 +110,7 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
     boolean isRegistered();
 
     /**
+     * 多态方法，客户端判断TCP连接是否完成，服务端判断监听是否启动
      * Return {@code true} if the {@link Channel} is active and so connected.
      */
     boolean isActive();
