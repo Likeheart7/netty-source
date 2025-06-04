@@ -104,6 +104,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
 
     /**
      * Create a new instance
+     * 创建NioSocketChannel时，会设置他需要感兴趣的标志位时OP_READ
      *
      * @param parent    the {@link Channel} which created this instance or {@code null} if it was created by the user
      * @param socket    the {@link SocketChannel} which will be used

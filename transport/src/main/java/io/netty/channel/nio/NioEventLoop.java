@@ -662,6 +662,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 当多路复用器检测到新的准备就绪的channel是，会执行到该方法
+     */
     private void processSelectedKeys() {
         if (selectedKeys != null) {
             processSelectedKeysOptimized();

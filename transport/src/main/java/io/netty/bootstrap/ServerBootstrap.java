@@ -230,9 +230,10 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
             final Channel child = (Channel) msg;
-
+            // 将启动时传入的childHandler加入客户端SocketChannel的ChannelPipeline
             child.pipeline().addLast(childHandler);
 
+            // 设置客户端SocketChannel的TCP参数
             setChannelOptions(child, childOptions, logger);
             setAttributes(child, childAttrs);
 
@@ -247,6 +248,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             }
 
             try {
+                // 最终会将SocketChannel注册到Selector上
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
