@@ -262,6 +262,7 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
             return threshold;
         }
 
+        // 如果容量超过阈值，不再采用倍增的方式，而是每次步进4MB
         // If over threshold, do not double but just increase by threshold.
         if (minNewCapacity > threshold) {
             int newCapacity = minNewCapacity / threshold * threshold;

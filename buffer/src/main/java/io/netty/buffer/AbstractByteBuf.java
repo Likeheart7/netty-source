@@ -68,11 +68,11 @@ public abstract class AbstractByteBuf extends ByteBuf {
     static final ResourceLeakDetector<ByteBuf> leakDetector =
             ResourceLeakDetectorFactory.instance().newResourceLeakDetector(ByteBuf.class);
 
-    int readerIndex;
-    int writerIndex;
-    private int markedReaderIndex;
-    private int markedWriterIndex;
-    private int maxCapacity;
+    int readerIndex; // 读指针
+    int writerIndex;    // 写指针
+    private int markedReaderIndex; // marked读指针
+    private int markedWriterIndex;  // marked写指针
+    private int maxCapacity;    // 容量
 
     protected AbstractByteBuf(int maxCapacity) {
         checkPositiveOrZero(maxCapacity, "maxCapacity");
@@ -212,6 +212,9 @@ public abstract class AbstractByteBuf extends ByteBuf {
         return this;
     }
 
+    /**
+     * 释放已读空间
+     */
     @Override
     public ByteBuf discardReadBytes() {
         if (readerIndex == 0) {
@@ -281,6 +284,10 @@ public abstract class AbstractByteBuf extends ByteBuf {
         return this;
     }
 
+    /**
+     * 确保空间充足
+     * @param minWritableBytes 最小所需空间
+     */
     final void ensureWritable0(int minWritableBytes) {
         final int writerIndex = writerIndex();
         final int targetCapacity = writerIndex + minWritableBytes;
@@ -302,6 +309,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
                 : alloc().calculateNewCapacity(targetCapacity, maxCapacity);
 
         // Adjust to the new capacity.
+        // 扩容
         capacity(newCapacity);
     }
 
@@ -979,8 +987,12 @@ public abstract class AbstractByteBuf extends ByteBuf {
         return this;
     }
 
+    /**
+     * writeByte的默认实现
+     */
     @Override
     public ByteBuf writeByte(int value) {
+        // 校验，确保空间充足
         ensureWritable0(1);
         _setByte(writerIndex++, value);
         return this;
@@ -1420,6 +1432,7 @@ public abstract class AbstractByteBuf extends ByteBuf {
     }
 
     /**
+     * 确保可读内容足够
      * Throws an {@link IndexOutOfBoundsException} if the current
      * {@linkplain #readableBytes() readable bytes} of this buffer is less
      * than the specified value.
