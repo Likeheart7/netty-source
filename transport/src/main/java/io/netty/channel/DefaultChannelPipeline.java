@@ -60,6 +60,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private static final AtomicReferenceFieldUpdater<DefaultChannelPipeline, MessageSizeEstimator.Handle> ESTIMATOR =
             AtomicReferenceFieldUpdater.newUpdater(
                     DefaultChannelPipeline.class, MessageSizeEstimator.Handle.class, "estimatorHandle");
+    // ChannelPipeline默认的头尾节点
     final HeadContext head;
     final TailContext tail;
 
@@ -967,6 +968,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     @Override
     public final ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
+        // 实际上就是调用tailContext#writeAndFlush
         return tail.writeAndFlush(msg, promise);
     }
 
@@ -1190,6 +1192,8 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     }
 
     // A special catch-all handler that handles both bytes and messages.
+    // 只实现了ChannelInboundHandler，在调用链路的最后一步执行，用于终止Inbound事件的传播，释放Message资源等
+    // 作为outbound事件传播的源头，将事件传递给上一个节点
     final class TailContext extends AbstractChannelHandlerContext implements ChannelInboundHandler {
 
         TailContext(DefaultChannelPipeline pipeline) {
@@ -1250,6 +1254,10 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         }
     }
 
+    /**
+     * 负责读取数据并开始传递inbound事件，数据处理完成后会经过outbound处理器，最终还是流回这里，
+     * 因为也实现了ChannelOutboundHandler
+     */
     final class HeadContext extends AbstractChannelHandlerContext
             implements ChannelOutboundHandler, ChannelInboundHandler {
 
@@ -1310,6 +1318,9 @@ public class DefaultChannelPipeline implements ChannelPipeline {
             unsafe.beginRead();
         }
 
+        /**
+         * HeadContext作为ChannelPipeline的默认头节点，实际上会在最后负责数据发送
+         */
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
             unsafe.write(msg, promise);

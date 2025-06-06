@@ -507,6 +507,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /**
+     * 核心方法
+     */
     @Override
     protected void run() {
         int selectCnt = 0;
@@ -557,19 +560,23 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 if (ioRatio == 100) {
                     try {
                         if (strategy > 0) {
+                            // 处理IO事件
                             processSelectedKeys();
                         }
                     } finally {
+                        // 处理所有任务
                         // Ensure we always run tasks.
                         ranTasks = runAllTasks();
                     }
                 } else if (strategy > 0) {
                     final long ioStartTime = System.nanoTime();
                     try {
+                        // 处理IO事件
                         processSelectedKeys();
                     } finally {
                         // Ensure we always run tasks.
                         final long ioTime = System.nanoTime() - ioStartTime;
+                        // 处理完IO事件在处理异步任务队列
                         ranTasks = runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                     }
                 } else {
@@ -578,7 +585,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
                 if (selectReturnPrematurely(selectCnt, ranTasks, strategy)) {
                     selectCnt = 0;
-                } else if (unexpectedSelectorWakeup(selectCnt)) { // Unexpected wakeup (unusual case)
+                } else if (unexpectedSelectorWakeup(selectCnt)) { // Unexpected wakeup (unusual case) 异常情况
                     selectCnt = 0;
                 }
             } catch (CancelledKeyException e) {
@@ -638,6 +645,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             }
             return true;
         }
+        // 如果发生异常情况，重建Selector，用以规避Selector空轮询的bug
         if (SELECTOR_AUTO_REBUILD_THRESHOLD > 0 &&
                 selectCnt >= SELECTOR_AUTO_REBUILD_THRESHOLD) {
             // The selector returned prematurely many times in a row.

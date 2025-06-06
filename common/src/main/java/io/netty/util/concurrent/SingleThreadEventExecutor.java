@@ -74,6 +74,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             AtomicReferenceFieldUpdater.newUpdater(
                     SingleThreadEventExecutor.class, ThreadProperties.class, "threadProperties");
 
+    // 任务队列
     private final Queue<Runnable> taskQueue;
 
     private volatile Thread thread;
@@ -278,7 +279,12 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
     }
 
+    /**
+     * 将定时任务队列中需要执行的任务合并到taskQueue
+     * @return
+     */
     private boolean fetchFromScheduledTaskQueue() {
+        // 没有定时任务直接返回
         if (scheduledTaskQueue == null || scheduledTaskQueue.isEmpty()) {
             return true;
         }
@@ -288,6 +294,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
             if (scheduledTask == null) {
                 return true;
             }
+            // 如果taskQueue队列满，放不下定时任务，将该任务重新放回定时队列
             if (!taskQueue.offer(scheduledTask)) {
                 // No space left in the task queue add it back to the scheduledTaskQueue so we pick it up again.
                 scheduledTaskQueue.add((ScheduledFutureTask<?>) scheduledTask);
@@ -373,8 +380,10 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         boolean ranAtLeastOne = false;
 
         do {
+            // 合并定时任务到普通队列
+            // 可能因taskQueue满无法合并，所以在do while中做
             fetchedAll = fetchFromScheduledTaskQueue();
-            // 执行尚在TaskQueue中排队的Task
+            // 执行尚在TaskQueue中排队的Task，该方法在taskQueue中任务执行完时返回true
             if (runAllTasksFrom(taskQueue)) {
                 // 全部执行成功
                 ranAtLeastOne = true;
@@ -384,6 +393,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         if (ranAtLeastOne) {
             lastExecutionTime = getCurrentTimeNanos();
         }
+        // 收尾工作
         afterRunningAllTasks();
         return ranAtLeastOne;
     }
@@ -422,13 +432,16 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * @return {@code true} if at least one task was executed.
      */
     protected final boolean runAllTasksFrom(Queue<Runnable> taskQueue) {
+        // 从普通任务队列中取出任务
         Runnable task = pollTaskFrom(taskQueue);
         if (task == null) {
             return false;
         }
         for (;;) {
+            // 安全执行任务
             safeExecute(task);
             task = pollTaskFrom(taskQueue);
+            // 如果任务执行完了，返回true
             if (task == null) {
                 return true;
             }
@@ -497,6 +510,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     /**
+     * 在taskQueue中所有任务执行完毕之后会调用
      * Invoked before returning from {@link #runAllTasks()} and {@link #runAllTasks(long)}.
      */
     protected void afterRunningAllTasks() { }

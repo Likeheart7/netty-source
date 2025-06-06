@@ -18,6 +18,7 @@ package io.netty.channel;
 import java.net.SocketAddress;
 
 /**
+ * 出站处理器，包括的所有方法都是在对应的操作执行之前触发，方法中的ChannelPromise参数用于在操作完成时能够及时获得通知
  * {@link ChannelHandler} which will get notified for IO-outbound-operations.
  */
 public interface ChannelOutboundHandler extends ChannelHandler {

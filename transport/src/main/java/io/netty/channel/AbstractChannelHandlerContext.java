@@ -58,9 +58,14 @@ import static io.netty.channel.ChannelHandlerMask.MASK_USER_EVENT_TRIGGERED;
 import static io.netty.channel.ChannelHandlerMask.MASK_WRITE;
 import static io.netty.channel.ChannelHandlerMask.mask;
 
+/**
+ * ChannelPipeline本身是一个双向链表，包含默认的头节点HeadContext和尾节点TailContext，
+ * 其他自定义ChannelHandler被ChannelHandlerContext包装在HeadContext和TailContext之间连成链表
+ */
 abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, ResourceLeakHint {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractChannelHandlerContext.class);
+    // 链表的结构
     volatile AbstractChannelHandlerContext next;
     volatile AbstractChannelHandlerContext prev;
 
@@ -879,6 +884,8 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     private void invokeWrite0(Object msg, ChannelPromise promise) {
+        // 实际上会调用下一个ChannelHandler的write方法，
+        // 最终就是一直寻找Outbound节点并向前传播，直到Head节点才结束，由Head节点完成最后的数据发送
         try {
             // DON'T CHANGE
             // Duplex handlers implements both out/in interfaces causing a scalability issue
@@ -924,6 +931,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
     }
 
+    /**
+     * 类似write操作，同样从tail节点开始传播直到head
+     */
     private void invokeFlush0() {
         try {
             // DON'T CHANGE
@@ -954,12 +964,14 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     void invokeWriteAndFlush(Object msg, ChannelPromise promise) {
         if (invokeHandler()) {
             invokeWrite0(msg, promise);
+            // Flush操作
             invokeFlush0();
         } else {
             writeAndFlush(msg, promise);
         }
     }
 
+    // inboundHandler调用writeAndFlush时会通过TailContext#writeAndFlush走到这里
     private void write(Object msg, boolean flush, ChannelPromise promise) {
         ObjectUtil.checkNotNull(msg, "msg");
         try {
@@ -973,11 +985,14 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             throw e;
         }
 
+        // 找到Pipeline中下一个OutBoundHandler
         final AbstractChannelHandlerContext next = findContextOutbound(flush ?
                 (MASK_WRITE | MASK_FLUSH) : MASK_WRITE);
         final Object m = pipeline.touch(msg, next);
         EventExecutor executor = next.executor();
+        // 判断当前线程是否是NioEventLoop中的线程
         if (executor.inEventLoop()) {
+            // 调用writeAndFlush时，该参数就是true
             if (flush) {
                 next.invokeWriteAndFlush(m, promise);
             } else {

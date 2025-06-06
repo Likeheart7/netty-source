@@ -109,6 +109,7 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
                     ReferenceCountUtil.release(cast);
                 }
 
+                // 将buf写出传递给下游处理器
                 if (buf.isReadable()) {
                     ctx.write(buf, promise);
                 } else {
@@ -148,8 +149,8 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
      * by this encoder.
      *
      * @param ctx           the {@link ChannelHandlerContext} which this {@link MessageToByteEncoder} belongs to
-     * @param msg           the message to encode
-     * @param out           the {@link ByteBuf} into which the encoded message will be written
+     * @param msg           the message to encode 上游传过来的数据
+     * @param out           the {@link ByteBuf} into which the encoded message will be written 编码后传递给下游的数据
      * @throws Exception    is thrown if an error occurs
      */
     protected abstract void encode(ChannelHandlerContext ctx, I msg, ByteBuf out) throws Exception;

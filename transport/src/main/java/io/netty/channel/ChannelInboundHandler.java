@@ -22,32 +22,38 @@ package io.netty.channel;
 public interface ChannelInboundHandler extends ChannelHandler {
 
     /**
+     * Channel创建后被注册到EventLoop上
      * The {@link Channel} of the {@link ChannelHandlerContext} was registered with its {@link EventLoop}
      */
     void channelRegistered(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     * Channel从EventLoop上解绑
      * The {@link Channel} of the {@link ChannelHandlerContext} was unregistered from its {@link EventLoop}
      */
     void channelUnregistered(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     * Channel处于就绪状态，可以被读写
      * The {@link Channel} of the {@link ChannelHandlerContext} is now active
      */
     void channelActive(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     * Channel出于非就绪状态
      * The {@link Channel} of the {@link ChannelHandlerContext} was registered is now inactive and reached its
      * end of lifetime.
      */
     void channelInactive(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     * Channel可以读取数据
      * Invoked when the current {@link Channel} has read a message from the peer.
      */
     void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception;
 
     /**
+     * Channel读取数据完成
      * Invoked when the last message read by the current read operation has been consumed by
      * {@link #channelRead(ChannelHandlerContext, Object)}.  If {@link ChannelOption#AUTO_READ} is off, no further
      * attempt to read an inbound data from the current {@link Channel} will be made until
@@ -56,11 +62,13 @@ public interface ChannelInboundHandler extends ChannelHandler {
     void channelReadComplete(ChannelHandlerContext ctx) throws Exception;
 
     /**
+     * 用户事件触发
      * Gets called if an user event was triggered.
      */
     void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception;
 
     /**
+     * Channel的写状态发生变化
      * Gets called once the writable state of a {@link Channel} changed. You can check the state with
      * {@link Channel#isWritable()}.
      */

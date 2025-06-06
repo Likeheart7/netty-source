@@ -849,6 +849,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         public final void write(Object msg, ChannelPromise promise) {
             assertEventLoop();
 
+            // 最后真正做发送数据的实例
             ChannelOutboundBuffer outboundBuffer = this.outboundBuffer;
             if (outboundBuffer == null) {
                 try {
@@ -867,6 +868,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             int size;
             try {
+                // 过滤消息，如果用的不是DirectByteBuf，会将其转为DirectByteBuf
+                // 因为直接内存传输效率更好，而且netty自己转换更可控
                 msg = filterOutboundMessage(msg);
                 size = pipeline.estimatorHandle().size(msg);
                 if (size < 0) {
@@ -881,6 +884,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            // 向Buffer中添加数据
             outboundBuffer.addMessage(msg, size, promise);
         }
 
@@ -892,11 +896,15 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             if (outboundBuffer == null) {
                 return;
             }
-
+            // writeAndFlush操作的flush的核心逻辑
             outboundBuffer.addFlush();
             flush0();
         }
 
+
+        /**
+         * flush的核心操作
+         */
         @SuppressWarnings("deprecation")
         protected void flush0() {
             if (inFlush0) {
@@ -930,6 +938,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
 
             try {
+                // 流向AbstractNioByteChannel的doWrite方法
                 doWrite(outboundBuffer);
             } catch (Throwable t) {
                 handleWriteError(t);

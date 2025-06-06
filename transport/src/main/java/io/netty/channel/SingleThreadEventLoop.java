@@ -37,6 +37,8 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
     protected static final int DEFAULT_MAX_PENDING_TASKS = Math.max(16,
             SystemPropertyUtil.getInt("io.netty.eventLoop.maxPendingTasks", Integer.MAX_VALUE));
 
+    // 尾队列，相比普通任务队列taskQueue优先级更低，每次执行完taskQueue中的任务后，回去获取尾队列中的任务执行
+    // 一般用来做一些收尾工作，如统计事件循环的执行时间，监控信息上报等
     private final Queue<Runnable> tailTasks;
 
     protected SingleThreadEventLoop(EventLoopGroup parent, ThreadFactory threadFactory, boolean addTaskWakesUp) {
@@ -130,6 +132,9 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
         return tailTasks.remove(ObjectUtil.checkNotNull(task, "task"));
     }
 
+    /**
+     * 在所有taskQueue中的任务执行完之后会调用，这里做的就是执行tailTasks这个尾队列中的任务，tailTasks一般用来做一些收尾工作
+     */
     @Override
     protected void afterRunningAllTasks() {
         runAllTasksFrom(tailTasks);

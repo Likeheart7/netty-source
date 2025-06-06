@@ -251,8 +251,13 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
         return WRITE_STATUS_SNDBUF_FULL;
     }
 
+    /**
+     * 负责将数据真正写入到Socket缓冲区
+     */
     @Override
     protected void doWrite(ChannelOutboundBuffer in) throws Exception {
+        // 根据配置获取自旋锁的次数，这里用自旋锁的目的相当于控制一次写入数据的最大循环执行次数
+        // 如果超过所设置的最大自旋次数，写操作将被暂时中断，防止写操作将当前EventLoop的线程阻塞太久
         int writeSpinCount = config().getWriteSpinCount();
         do {
             Object msg = in.current();
@@ -262,9 +267,11 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
                 // Directly return here so incompleteWrite(...) is not called.
                 return;
             }
+            // 根据自旋次数重复调用该方法，内部涉及NIO底层
             writeSpinCount -= doWriteInternal(in, msg);
         } while (writeSpinCount > 0);
 
+        // 可能超过自旋次数还没写完，所以要继续OP_WRITE事件
         incompleteWrite(writeSpinCount < 0);
     }
 

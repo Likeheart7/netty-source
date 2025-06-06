@@ -77,10 +77,13 @@ public final class ChannelOutboundBuffer {
     // Entry(flushedEntry) --> ... Entry(unflushedEntry) --> ... Entry(tailEntry)
     //
     // The Entry that is the first in the linked-list structure that was flushed
+    // 第一个被写到缓冲区的节点
     private Entry flushedEntry;
     // The Entry which is the first unflushed in the linked-list structure
+    // 第一个未被写到缓冲区的节点
     private Entry unflushedEntry;
     // The Entry which represents the tail of the buffer
+    // 最后一个节点
     private Entry tailEntry;
     // The number of flushed entries that are not written yet
     private int flushed;
@@ -113,6 +116,7 @@ public final class ChannelOutboundBuffer {
      * the message was written.
      */
     public void addMessage(Object msg, int size, ChannelPromise promise) {
+        // 一个链表结构，每次传入的数据都会被封装成一个Entry对象添加到链表中
         Entry entry = Entry.newInstance(msg, size, total(msg), promise);
         if (tailEntry == null) {
             flushedEntry = null;
@@ -137,6 +141,7 @@ public final class ChannelOutboundBuffer {
 
         // increment pending bytes after adding message to the unflushed arrays.
         // See https://github.com/netty/netty/issues/1619
+        // 用于判断每次写入缓存数据后缓存的“水位线”
         incrementPendingOutboundBytes(entry.pendingSize, false);
     }
 
@@ -160,6 +165,7 @@ public final class ChannelOutboundBuffer {
                 if (!entry.promise.setUncancellable()) {
                     // Was cancelled so make sure we free up memory and notify about the freed bytes
                     int pending = entry.cancel();
+                    // 控制缓存水位线，同write操作中的相对应
                     decrementPendingOutboundBytes(pending, false, true);
                 }
                 entry = entry.next;
@@ -184,7 +190,9 @@ public final class ChannelOutboundBuffer {
         }
 
         long newWriteBufferSize = TOTAL_PENDING_SIZE_UPDATER.addAndGet(this, size);
+        // 判断缓存大小是否超过高水位线，默认64KB
         if (newWriteBufferSize > channel.config().getWriteBufferHighWaterMark()) {
+            // 如果超过了缓存将变为不可写，直到缓存水位线降到32KB以下
             setUnwritable(invokeLater);
         }
     }
