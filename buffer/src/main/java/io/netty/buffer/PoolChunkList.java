@@ -27,6 +27,11 @@ import static java.lang.Math.*;
 
 import java.nio.ByteBuffer;
 
+/**
+ * 负责管理多个PoolChunk的生命周期，同一个PoolChunkList存放内存使用率相近的PoolChunk，
+ * 这些PoolChunk以双向链表的形式连接起来，每个PoolChunk会在不同的PoolChunkList之间移动
+ * 当PoolChunk中的内存释放后，如果小于minUsage或者大于maxUsage，会从当前的PoolChunkList移动到其他的PoolChunkList
+ */
 final class PoolChunkList<T> implements PoolChunkListMetric {
     private static final Iterator<PoolChunkMetric> EMPTY_METRICS = Collections.<PoolChunkMetric>emptyList().iterator();
     private final PoolArena<T> arena;

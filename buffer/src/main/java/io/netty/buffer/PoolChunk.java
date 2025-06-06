@@ -132,6 +132,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * 3) merge continuous avail runs
  * 4) save the merged run
  *
+ * netty的内存分配和回收都是基于PoolChunk实现的，这是真正存储数据的地方，每个PoolChunk默认16MB
  */
 final class PoolChunk<T> implements PoolChunkMetric {
     private static final int SIZE_BIT_LENGTH = 15;
@@ -146,7 +147,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
 
     final PoolArena<T> arena;
     final Object base;
-    final T memory;
+    final T memory; // 存储的数据
     final boolean unpooled;
 
     /**
@@ -162,6 +163,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     private final ReentrantLock runsAvailLock;
 
     /**
+     * PoolChunk管理的2048个8K内存块
      * manage all subpages in this chunk
      */
     private final PoolSubpage<T>[] subpages;
@@ -183,7 +185,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
     // This may be null if the PoolChunk is unpooled as pooling the ByteBuffer instances does not make any sense here.
     private final Deque<ByteBuffer> cachedNioBuffers;
 
-    int freeBytes;
+    int freeBytes; // 剩余内存大小
 
     PoolChunkList<T> parent;
     PoolChunk<T> prev;

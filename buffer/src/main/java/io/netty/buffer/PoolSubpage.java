@@ -26,21 +26,24 @@ import static io.netty.buffer.PoolChunk.IS_SUBPAGE_SHIFT;
 final class PoolSubpage<T> implements PoolSubpageMetric {
 
     final PoolChunk<T> chunk;
-    final int elemSize;
+    final int elemSize; // 每个小内存块的大小
     private final int pageShifts;
+    // PoolSubpage在PoolChunk中memory的偏移量
     private final int runOffset;
     private final int runSize;
+    // 记录每个小内存块的状态，使用0/1标记是否使用
     private final long[] bitmap;
     private final int bitmapLength;
-    private final int maxNumElems;
+    private final int maxNumElems; // 最多可以存放多少个小内存块(8K / elemSize)
     final int headIndex;
 
+    // 与PoolArena中tinySubpagePools或smallSubpagePools中的元素连接成双向链表
     PoolSubpage<T> prev;
     PoolSubpage<T> next;
 
     boolean doNotDestroy;
     private int nextAvail;
-    private int numAvail;
+    private int numAvail; // 可用于分配的内存块个数
 
     final ReentrantLock lock;
 

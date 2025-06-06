@@ -34,15 +34,17 @@ import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
  *
  * Be aware that the {@link FileChannel} will be automatically closed once {@link #refCnt()} returns
  * {@code 0}.
+ * 本质上就是一个对JDK FileChannel的简单封装，不过FileChannel的transferTo一般只有对SocketChannel才能实现零拷贝，
+ * 对于文件to文件虽然也很快，但是并不是和SocketChannel同样意义的零拷贝
  */
 public class DefaultFileRegion extends AbstractReferenceCounted implements FileRegion {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(DefaultFileRegion.class);
-    private final File f;
-    private final long position;
-    private final long count;
-    private long transferred;
-    private FileChannel file;
+    private final File f; // 传输的文件
+    private final long position;    // 文件的起始位置
+    private final long count;   // 传输的字节数
+    private long transferred;   // 已经写入的字节数
+    private FileChannel file;   // 文件对应的FileChannel
 
     /**
      * Create a new instance
@@ -127,6 +129,7 @@ public class DefaultFileRegion extends AbstractReferenceCounted implements FileR
         // Call open to make sure fc is initialized. This is a no-oop if we called it before.
         open();
 
+        // 本质上就是JDK 的FileChannel#transferTo
         long written = file.transferTo(this.position + position, count, target);
         if (written > 0) {
             transferred += written;

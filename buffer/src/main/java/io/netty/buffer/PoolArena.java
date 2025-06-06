@@ -31,6 +31,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import static io.netty.buffer.PoolChunk.isSubpage;
 import static java.lang.Math.max;
 
+/**
+ * <pre>
+ * 内存分配相关
+ *
+ * </pre>
+ */
 abstract class PoolArena<T> implements PoolArenaMetric {
     private static final boolean HAS_UNSAFE = PlatformDependent.hasUnsafe();
 
@@ -43,12 +49,21 @@ abstract class PoolArena<T> implements PoolArenaMetric {
 
     final PoolSubpage<T>[] smallSubpagePools;
 
-    private final PoolChunkList<T> q050;
-    private final PoolChunkList<T> q025;
-    private final PoolChunkList<T> q000;
+    /*
+    分配大于8K的内存是，链表访问顺序为q050 -> q025 -> q000 -> qInit -> q075
+    见方法 allocateNormal()
+    这种分配顺序的本质是内存分配的折中，
+    如果总是从q000开始，大部分PoolChunk面临频繁的创建和销毁
+    如果从q50开始，可以让PoolChunk的使用率范围保持在中间水平，降低被回收的概率
+    之所以这些PoolChunkList之间的范围有重叠，是因为如果每个PoolChunkList的临界值恰好衔接，那么可能出现PoolChunk不断在两个PoolChunkList之间移动
+     */
+    private final PoolChunkList<T> q050;    // 内存使用率50-100%
+    private final PoolChunkList<T> q025;    // 内存使用率25-75%
+    private final PoolChunkList<T> q000;    // 内存使用率1-50%
+    // 内存使用率0-25%，实际上是第一次内存分配时新创建的添加到这里，其中的PoolChunk即使内存被完全释放也不会回收，避免重复初始化
     private final PoolChunkList<T> qInit;
-    private final PoolChunkList<T> q075;
-    private final PoolChunkList<T> q100;
+    private final PoolChunkList<T> q075;    // 内存使用率75-100%
+    private final PoolChunkList<T> q100;    //内存使用率100%
 
     private final List<PoolChunkListMetric> chunkListMetrics;
 

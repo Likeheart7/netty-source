@@ -250,6 +250,7 @@ public final class Unpooled {
      * of the specified buffers will be visible to the returned buffer.
      * @param buffers The buffers to wrap. Reference count ownership of all variables is transferred to this method.
      * @return The readable portion of the {@code buffers}. The caller is responsible for releasing this buffer.
+     * 对多个ByteBuf实际上就是通过CompositeByteBuf来组合，所以不会有复制的开销
      */
     public static ByteBuf wrappedBuffer(ByteBuf... buffers) {
         return wrappedBuffer(buffers.length, buffers);
