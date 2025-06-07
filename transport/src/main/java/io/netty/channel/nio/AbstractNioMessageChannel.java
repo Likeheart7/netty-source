@@ -63,6 +63,10 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
 
         private final List<Object> readBuf = new ArrayList<Object>();
 
+        /**
+         * 核心逻辑就是不断循环读取数据，然后放入list中，这里的数据实际上就是新连接。
+         * 需要跟进到NioServerSocketChannel#doReadMessage
+         */
         @Override
         public void read() {
             assert eventLoop().inEventLoop();
@@ -75,8 +79,9 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
             Throwable exception = null;
             try {
                 try {
-                    // 在一个循环里执行doReadMessage
+                    // 在一个循环里执行doReadMessage，不断读取Buffer中的数据
                     do {
+                        // 这个一般会走到NioServerSocketChannel的该方法
                         int localRead = doReadMessages(readBuf);
                         if (localRead == 0) {
                             break;
@@ -95,12 +100,15 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
                 int size = readBuf.size();
                 for (int i = 0; i < size; i ++) {
                     readPending = false;
+                    // 上面的doReadMessages会创建NioSocketChannel
                     // 接收到新的客户端连接后触发ChannelPipeline的ChannelRead方法
-                    // 事件会在ChannelPipeLine中传递，之前添加的ServerBootstrapAcceptor的channelRead方法调用
+                    // 事件会在ChannelPipeLine中传递，之前添加的ServerBootstrapAcceptor的channelRead方法会被触发
+                    // 而在哪个方法里，就会把SocketChannel分配给工作线程去执行
                     pipeline.fireChannelRead(readBuf.get(i));
                 }
                 readBuf.clear();
                 allocHandle.readComplete();
+                // 传播读取完毕事件
                 pipeline.fireChannelReadComplete();
 
                 if (exception != null) {

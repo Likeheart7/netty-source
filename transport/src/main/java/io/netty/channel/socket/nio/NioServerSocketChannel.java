@@ -159,9 +159,13 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     @Override
     protected int doReadMessages(List<Object> buf) throws Exception {
         // 实际上里面调用的是ServerSocketChannel的accept()
+        // 因为是在selector收到阻塞完毕后再调用的，所以这里会直接连接上
         SocketChannel ch = SocketUtils.accept(javaChannel());
 
+        // 当连接成功后，就要创建NioSocketChannel来处理具体的客户端连接了
         try {
+            // 实际上就是基于JDK的ServerSocketChannel的accept方法返回的SocketChannel封装的自己的NioSocketChannel
+            // 创建的NioSocketChannel也会和NioServerSocketChannel一样，创建id、unsafe、pipeline，不过注册的是OP_READ事件
             if (ch != null) {
                 buf.add(new NioSocketChannel(this, ch));
                 return 1;

@@ -230,9 +230,16 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             };
         }
 
+        /**
+         * 在有连接进来，为其创建了NioSocketChannel后，会传播channelRead事件，该方法会被触发
+         * 主要做两件事：
+         * 1. 为创建的SocketChannel配置参数和Handler
+         * 2. 将其注册到Selector上
+         */
         @Override
         @SuppressWarnings("unchecked")
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            // 这个Channel就是NioSocketChannel
             final Channel child = (Channel) msg;
             // 将启动时传入的childHandler加入客户端SocketChannel的ChannelPipeline
             child.pipeline().addLast(childHandler);
@@ -252,7 +259,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             }
 
             try {
-                // 最终会将SocketChannel注册到Selector上
+                // 最终会将SocketChannel注册到Selector上，注意这里是注册到从Reactor上的
                 childGroup.register(child).addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
