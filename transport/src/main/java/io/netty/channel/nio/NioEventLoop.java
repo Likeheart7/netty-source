@@ -508,7 +508,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     /**
-     * 核心方法
+     * 核心方法，本质上在一个无限循环中不断执行select -> processSelectedKeys -> runAllTasks
      */
     @Override
     protected void run() {
@@ -522,6 +522,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                     case SelectStrategy.CONTINUE:
                         continue;
 
+                        // 因为Nio实际上不支持Busy-wait，所以直接传到SELECT
                     case SelectStrategy.BUSY_WAIT:
                         // fall-through to SELECT since the busy-wait is not supported with NIO
 
@@ -533,6 +534,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                         nextWakeupNanos.set(curDeadlineNanos);
                         try {
                             if (!hasTasks()) {
+                                // 没有任务是就阻塞在这个select方法内的select()调用
                                 strategy = select(curDeadlineNanos);
                             }
                         } finally {
@@ -564,7 +566,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                             processSelectedKeys();
                         }
                     } finally {
-                        // 处理所有任务
+                        // 处理异步任务队列
                         // Ensure we always run tasks.
                         ranTasks = runAllTasks();
                     }
@@ -911,6 +913,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
 
     private int select(long deadlineNanos) throws IOException {
         if (deadlineNanos == NONE) {
+            // 底层的Selector#select方法，
             return selector.select();
         }
         // Timeout will only be 0 if deadline is within 5 microsecs

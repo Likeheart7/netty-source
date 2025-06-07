@@ -26,6 +26,7 @@ import java.lang.reflect.Constructor;
  */
 public class ReflectiveChannelFactory<T extends Channel> implements ChannelFactory<T> {
 
+    // 构造器中赋值
     private final Constructor<? extends T> constructor;
 
     public ReflectiveChannelFactory(Class<? extends T> clazz) {
@@ -39,10 +40,14 @@ public class ReflectiveChannelFactory<T extends Channel> implements ChannelFacto
         }
     }
 
+    /**
+     * ServerBootstrap#bind会走到这里，创建NioServerSocketChannel
+     */
     @Override
     public T newChannel() {
         try {
             // 通过反射获取的构造器创建实例
+            // 因为是用构造器创建的，所以需要关注NioServerSocketChannel的构造函数
             return constructor.newInstance();
         } catch (Throwable t) {
             throw new ChannelException("Unable to create Channel from class " + constructor.getDeclaringClass(), t);

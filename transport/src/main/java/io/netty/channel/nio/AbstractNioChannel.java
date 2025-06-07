@@ -83,6 +83,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         this.ch = ch;
         this.readInterestOp = readInterestOp;
         try {
+            // 将Channel设置为非阻塞以适用于Selector
             ch.configureBlocking(false);
         } catch (IOException e) {
             try {
@@ -379,6 +380,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         return loop instanceof NioEventLoop;
     }
 
+    /**
+     * AbstractChannel#register0会调用该方法将Channel注册到Selector上
+     */
     @Override
     protected void doRegister() throws Exception {
         boolean selected = false;
@@ -386,6 +390,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             try {
                 // 将NioServerSocketChannel注册到EventLoop的Selector上
                 // ops: 0表示只注册，不监听任何操作
+                // 这里第三个参数this，会被绑定在Channel的attachment上，这样每次Selector对象进行事件循环时，netty都可以从Channel的attachment获取到自己的Channel对象
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {

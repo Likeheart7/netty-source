@@ -127,6 +127,7 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
         if (initMap.add(ctx)) { // Guard against re-entrance.
             try {
                 // 执行创建时重写的ChannelInitializer的initChannel逻辑，一般是添加ChannelHandler
+                // 对于ServerBootStrap,实际上是其init方法添加ServerBootstrapAcceptor的逻辑
                 initChannel((C) ctx.channel());
             } catch (Throwable cause) {
                 // Explicitly call exceptionCaught(...) as we removed the handler before calling initChannel(...).

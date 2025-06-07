@@ -260,6 +260,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * bind方法是ServerBootstrap启动的核心方法，真正执行的核心方法是doBind
      * Create a new {@link Channel} and bind it.
      */
     public ChannelFuture bind(int inetPort) {
@@ -293,18 +294,23 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * 调用serverBootstrap#bind()流向该方法
      */
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 调用initRegister初始化并注册Channel， 返回Future意味着是一个异步的过程
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
+        // 通过上述的ChannelFuture判断是否在创建过程中发生异常
         if (regFuture.cause() != null) {
             return regFuture;
         }
 
+        // 表示initRegister是否执行完毕
+        // 之所以不是直接注册监听器是因为如果initRegister执行的快的话，这样可以避免不必要的异步延迟，获取更高的性能
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            // 如果initRegister执行完毕就调用doBind0绑定Socket
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
-        } else {
+        } else { // 如果此时还没有执行完毕，就给initRegister的返回结果添加一个回调，当执行结束后再调用doBind0去执行Socket绑定
             // Registration future is almost always fulfilled already, but just in case it's not.
             final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
             regFuture.addListener(new ChannelFutureListener() {
@@ -328,11 +334,24 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    /**
+     * 主要分为三步：
+     * 1. 创建Channel
+     *      a. 通过ReflectiveChannelFactory反射创建NioServerSocketChannel实例
+     *      b. 通过SelectorProviderUtil封装的JDK提供的SelectorProvider创建底层的ServerSocketChannel
+     *      c. 为Channel分配id、unsafe、pipeline三个重要的成员变量
+     *      d. 将ServerSocketChannel配置为非阻塞
+     * 2. 初始化Channel
+     *      a. 设置Socket参数、用户自定义属性
+     *      b. 添加特殊的Handler处理器，即ServerBootstrapAcceptor，它就是用来处理accept事件的
+     * 3. 注册Channel
+     */
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
-            // 创建NioServerSocketChannel
+            // 1. 创建NioServerSocketChannel
             channel = channelFactory.newChannel();
+            // 2. 初始化Channel
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -345,7 +364,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
-        // 将channel注册到NioEventLoop，最终流向AbstractUnsafe#register
+        // 3. 将channel注册到NioEventLoop，最终流向AbstractUnsafe#register
         ChannelFuture regFuture = config().group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {

@@ -58,6 +58,9 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     private static ServerSocketChannel newChannel(SelectorProvider provider, InternetProtocolFamily family) {
         try {
+
+            // 利用封装的JDK提供的SelectorProvider创建用于服务端的ServerSocketChannel
+            // 根据操作系统的不同创建不同的实例，见DefaultSelectorProvider
             ServerSocketChannel channel =
                     SelectorProviderUtil.newChannel(OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY, provider, family);
             return channel == null ? provider.openServerSocketChannel() : channel;
@@ -91,8 +94,10 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     /**
      * Create a new instance using the given {@link ServerSocketChannel}.
+     * 该构造函数的参数就是一个JDK原生的ServerSocketChannel
      */
     public NioServerSocketChannel(ServerSocketChannel channel) {
+        // 注意这里会传递一个SelectKey.OP_ACCEPT，这是后续绑定事件的核心
         super(null, channel, SelectionKey.OP_ACCEPT);
         config = new NioServerSocketChannelConfig(this, javaChannel().socket());
     }
@@ -137,6 +142,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     @SuppressJava6Requirement(reason = "Usage guarded by java version check")
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {
+        // 根据JDK版本决定
         if (PlatformDependent.javaVersion() >= 7) {
             javaChannel().bind(localAddress, config.getBacklog());
         } else {

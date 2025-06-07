@@ -69,8 +69,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      */
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
+        // Channel全局唯一的id
         id = newId();
+        // unsafe底层操作读写工具
         unsafe = newUnsafe();
+        // pipeline负责业务处理器编排
         pipeline = newChannelPipeline();
     }
 
@@ -475,9 +478,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             AbstractChannel.this.eventLoop = eventLoop;
 
+            // Reactor内部线程调用
             if (eventLoop.inEventLoop()) {
                 register0(promise);
-            } else {
+            } else { // 外部线程调用，封装成一个Task丢给EventLoop执行，这就可以保证所有可能访问共享变量的操作都是由EventLoop线程执行的，避免并发问题
                 try {
                     eventLoop.execute(new Runnable() {
                         @Override
@@ -496,6 +500,14 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
         }
 
+        /**
+         * 将Channel注册到EventLoop的核心方法
+         * 主要做4件事
+         * 1. 调用JDK底层进行Channel注册
+         * 2. 触发handlerAdded事件
+         * 3. 触发channelRegistered事件
+         * 4. 若连接active，触发channelActive事件
+         */
         private void register0(ChannelPromise promise) {
             try {
                 // check if the channel is still open as it could be closed in the mean time when the register
@@ -504,21 +516,25 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                // 调用JDK底层的register将Channel注册到Selector上
                 doRegister();
                 neverRegistered = false;
                 registered = true;
 
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+                // 触发handlerAdded事件，并且自定义的业务逻辑处理器也是在这里添加进去的
                 pipeline.invokeHandlerAddedIfNeeded();
 
                 safeSetSuccess(promise);
-                // 触发ChannelRegistered
+                // 触发ChannelRegistered事件
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
+                // 此时Channel还未注册绑定地址，所以处于非活跃状态
                 if (isActive()) {
                     if (firstRegistration) {
+                        // Channel状态为active时，触发channelActive事件
                         pipeline.fireChannelActive();
                     } else if (config().isAutoRead()) {
                         // This channel was registered before and autoRead() is set. This means we need to begin read
@@ -559,6 +575,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             boolean wasActive = isActive();
             try {
+                // 调用JDK底层进行端口绑定
                 doBind(localAddress);
             } catch (Throwable t) {
                 safeSetFailure(promise, t);
@@ -570,6 +587,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 invokeLater(new Runnable() {
                     @Override
                     public void run() {
+                        // 触发channelActive事件
                         pipeline.fireChannelActive();
                     }
                 });
