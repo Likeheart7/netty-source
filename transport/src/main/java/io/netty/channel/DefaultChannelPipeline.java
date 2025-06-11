@@ -907,8 +907,6 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
     /**
      * 实际上就是从headContext开始调用channelRead方法
-     * @param msg
-     * @return
      */
     @Override
     public final ChannelPipeline fireChannelRead(Object msg) {
