@@ -61,6 +61,7 @@ import static io.netty.channel.ChannelHandlerMask.mask;
 /**
  * ChannelPipeline本身是一个双向链表，包含默认的头节点HeadContext和尾节点TailContext，
  * 其他自定义ChannelHandler被ChannelHandlerContext包装在HeadContext和TailContext之间连成链表
+ * 我们在ChannelHandler的方法里面持有的ChannelHandlerContext就是该类的子类实例
  */
 abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, ResourceLeakHint {
 
@@ -90,6 +91,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
      */
     private static final int INIT = 0;
 
+    // 该Context所处的ChannelPipeline
     private final DefaultChannelPipeline pipeline;
     private final String name;
     private final boolean ordered;
@@ -106,6 +108,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     private volatile int handlerState = INIT;
 
+    /**
+     * 创建DefaultChannelHandlerContext时显式调用
+     */
     AbstractChannelHandlerContext(DefaultChannelPipeline pipeline, EventExecutor executor,
                                   String name, Class<? extends ChannelHandler> handlerClass) {
         this.name = ObjectUtil.checkNotNull(name, "name");
@@ -1118,6 +1123,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         handlerState = REMOVE_COMPLETE;
     }
 
+    /**
+     * netty通过CAS将状态修改为ADD_COMPLETE
+     */
     final boolean setAddComplete() {
         for (;;) {
             int oldState = handlerState;
@@ -1141,6 +1149,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     final void callHandlerAdded() throws Exception {
         // We must call setAddComplete before calling handlerAdded. Otherwise if the handlerAdded method generates
         // any pipeline events ctx.handler() will miss them because the state will not allow it.
+        // 先用CAS将状态置为ADD_COMPLETE，然后直接调用handlerAdded方法
         if (setAddComplete()) {
             handler().handlerAdded(this);
         }

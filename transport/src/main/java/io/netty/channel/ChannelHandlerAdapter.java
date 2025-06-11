@@ -27,6 +27,7 @@ import java.util.Map;
 public abstract class ChannelHandlerAdapter implements ChannelHandler {
 
     // Not using volatile because it's used only for a sanity check.
+    // 用于标识该Handler是否已经被添加过，如果不是Sharable的Handler不允许重复添加
     boolean added;
 
     /**

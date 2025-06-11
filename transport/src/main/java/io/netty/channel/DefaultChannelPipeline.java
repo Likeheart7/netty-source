@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 /**
  * The default {@link ChannelPipeline} implementation.  It is usually created
  * by a {@link Channel} implementation when the {@link Channel} is created.
+ * ChannelPipeline的默认实现，AbstractChannel包含该类实例，并最终通过继承传递给NioServerSocektChannel和NioSocketChannel
  */
 public class DefaultChannelPipeline implements ChannelPipeline {
 
@@ -49,6 +50,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private static final String HEAD_NAME = generateName0(HeadContext.class);
     private static final String TAIL_NAME = generateName0(TailContext.class);
 
+    // 使用FastThreadLocal缓存Handler名称，用于名称重复的检测
     private static final FastThreadLocal<Map<Class<?>, String>> nameCaches =
             new FastThreadLocal<Map<Class<?>, String>>() {
         @Override
@@ -60,7 +62,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private static final AtomicReferenceFieldUpdater<DefaultChannelPipeline, MessageSizeEstimator.Handle> ESTIMATOR =
             AtomicReferenceFieldUpdater.newUpdater(
                     DefaultChannelPipeline.class, MessageSizeEstimator.Handle.class, "estimatorHandle");
-    // ChannelPipeline默认的头尾节点
+    // ChannelPipeline默认的头尾节点，期间连接的是自定义的ChannelHandler
     final HeadContext head;
     final TailContext tail;
 
@@ -159,21 +161,31 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         ADD_AFTER;
     }
 
+    /**
+     * 对于ch.pipeline.addLast真正的核心方法
+     */
     private ChannelPipeline internalAdd(EventExecutorGroup group, String name,
                                         ChannelHandler handler, String baseName,
                                         AddStrategy addStrategy) {
         final AbstractChannelHandlerContext newCtx;
+        // 之所以加锁是因为添加Handler的主线程可能和EventLoop线程register操作同时发生，从而并发的操作Pipeline
         synchronized (this) {
+            // 检查是否重复添加handler
             checkMultiplicity(handler);
+            // 为Handler创建唯一的名称
             name = filterName(name, handler);
 
+            // 创建性的DefaultChannelHandlerContext实例
             newCtx = newContext(group, name, handler);
 
+            // 根据add具体目的添加DefaultChannelHandlerContext实例到HeadContext和TailContext的链表中
             switch (addStrategy) {
                 case ADD_FIRST:
+                    // 加载head.next
                     addFirst0(newCtx);
                     break;
                 case ADD_LAST:
+                    // 加在tail.prev
                     addLast0(newCtx);
                     break;
                 case ADD_BEFORE:
@@ -201,6 +213,9 @@ public class DefaultChannelPipeline implements ChannelPipeline {
                 return this;
             }
         }
+        // 触发ChannelAdded
+        // 注意这里和其他的方法传播事件调用的方式不同，
+        // 实际上是在将ChannelHandler对应的ChannelHandlerContext状态置为ADD_COMPLETE后，直接调用的
         callHandlerAdded0(newCtx);
         return this;
     }
@@ -258,6 +273,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         if (name == null) {
             return generateName(handler);
         }
+        // 校验名称是否冲突，就是遍历了head-tail之间的节点
         checkDuplicateName(name);
         return name;
     }
@@ -334,6 +350,10 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    /**
+     * 为Handler生成名称时调用
+     * 生成规则是 类名#0，如果冲突则递增数字直到不再冲突
+     */
     private String generateName(ChannelHandler handler) {
         Map<Class<?>, String> cache = nameCaches.get();
         Class<?> handlerType = handler.getClass();
@@ -345,6 +365,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
         // It's not very likely for a user to put more than one handler of the same type, but make sure to avoid
         // any name conflicts.  Note that we don't cache the names generated here.
+        // 在generateName过程中如果名称冲突，会将其结尾的数字递增替换，不断尝试直到不冲突
         if (context0(name) != null) {
             String baseName = name.substring(0, name.length() - 1); // Strip the trailing '0'.
             for (int i = 1;; i ++) {
@@ -362,8 +383,18 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return StringUtil.simpleClassName(handlerType) + "#0";
     }
 
+    /**
+     * 整个步骤分为三步：
+     * 1. 根据Handler查找对应的ChannelHandlerContext
+     * 2. 从HeadContext和TailContext之间的链表中删除该ChannelHandlerContext
+     * 3. 调用channelRemoved方法
+     * @param handler the {@link ChannelHandler} to remove
+     *
+     * @return
+     */
     @Override
     public final ChannelPipeline remove(ChannelHandler handler) {
+        // getContextOrDie查找需要删除的节点
         remove(getContextOrDie(handler));
         return this;
     }
@@ -402,7 +433,10 @@ public class DefaultChannelPipeline implements ChannelPipeline {
     private AbstractChannelHandlerContext remove(final AbstractChannelHandlerContext ctx) {
         assert ctx != head && ctx != tail;
 
+        // 防止并发操作问题
         synchronized (this) {
+            // 从HandlerList这个双向链表中删除该ChanelHandlerContext
+            // 该方法是一个synchronized方法
             atomicRemoveFromHandlerList(ctx);
 
             // If the registered is false it means that the channel was not registered on an eventloop yet.
@@ -424,11 +458,13 @@ public class DefaultChannelPipeline implements ChannelPipeline {
                 return ctx;
             }
         }
+        // 跟添加ChannelHandler是调用channelAdded事件一样，先改ChannelHandlerContext状态再直接调用handlerRemove方法
         callHandlerRemoved0(ctx);
         return ctx;
     }
 
     /**
+     * 该方法是一个synchronized方法，保证从链表中删除节点的原子性
      * Method is synchronized to make the handler removal from the double linked list atomic.
      */
     private synchronized void atomicRemoveFromHandlerList(AbstractChannelHandlerContext ctx) {
@@ -663,13 +699,18 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return context0(ObjectUtil.checkNotNull(name, "name"));
     }
 
+    /**
+     * 遍历HeadContext和TailContext之间的节点，直到找到其中包裹的Handler和目标Handler一致的ChannelHandlerContext
+     */
     @Override
     public final ChannelHandlerContext context(ChannelHandler handler) {
         ObjectUtil.checkNotNull(handler, "handler");
 
         AbstractChannelHandlerContext ctx = head.next;
+        // 遍历直到找到对应的ChannelHandlerContext
         for (;;) {
 
+            // 如果是尾节点还没找到，返回null
             if (ctx == null) {
                 return null;
             }
@@ -1028,6 +1069,9 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         }
     }
 
+    /**
+     * 根据handler查找对应的节点
+     */
     private AbstractChannelHandlerContext getContextOrDie(ChannelHandler handler) {
         AbstractChannelHandlerContext ctx = (AbstractChannelHandlerContext) context(handler);
         if (ctx == null) {

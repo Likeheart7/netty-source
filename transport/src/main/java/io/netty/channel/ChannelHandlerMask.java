@@ -87,13 +87,16 @@ final class ChannelHandlerMask {
 
     /**
      * Calculate the {@code executionMask}.
+     * 跳过当前Handler不感兴趣的事件，因为在ChannelHandlerAdapter、ChannelHandlerInboundAdapter、ChannelHandlerInboundAdapter中
+     * 方法的默认实现是被修饰了@Skip注解的，所以如果我们没有重写，那么该事件就是被跳过的
      */
     private static int mask0(Class<? extends ChannelHandler> handlerType) {
         int mask = MASK_EXCEPTION_CAUGHT;
         try {
+            // 如果是ChannelInboundHandler实例，所有Inbound事件置为1
             if (ChannelInboundHandler.class.isAssignableFrom(handlerType)) {
                 mask |= MASK_ALL_INBOUND;
-
+                // 排除Handler不感兴趣的Inbound事件
                 if (isSkippable(handlerType, "channelRegistered", ChannelHandlerContext.class)) {
                     mask &= ~MASK_CHANNEL_REGISTERED;
                 }
@@ -120,9 +123,10 @@ final class ChannelHandlerMask {
                 }
             }
 
+            // 如果是ChannelOutBoundHandler实例，所有outBound事件置为1
             if (ChannelOutboundHandler.class.isAssignableFrom(handlerType)) {
                 mask |= MASK_ALL_OUTBOUND;
-
+                // 排除Handler不感兴趣的事件
                 if (isSkippable(handlerType, "bind", ChannelHandlerContext.class,
                         SocketAddress.class, ChannelPromise.class)) {
                     mask &= ~MASK_BIND;

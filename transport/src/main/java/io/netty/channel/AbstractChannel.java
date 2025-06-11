@@ -38,6 +38,7 @@ import java.util.concurrent.RejectedExecutionException;
 
 /**
  * A skeletal {@link Channel} implementation.
+ * NioServerSocketChannel和NioSocketChannel都会间接继承该类
  */
 public abstract class AbstractChannel extends DefaultAttributeMap implements Channel {
 
@@ -46,6 +47,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private final Channel parent;
     private final ChannelId id;
     private final Unsafe unsafe;
+    // 该Channel对应的ChannelPipeline
     private final DefaultChannelPipeline pipeline;
     private final VoidChannelPromise unsafeVoidPromise = new VoidChannelPromise(this, false);
     private final CloseFuture closeFuture = new CloseFuture(this);
@@ -73,7 +75,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         id = newId();
         // unsafe底层操作读写工具
         unsafe = newUnsafe();
-        // pipeline负责业务处理器编排
+        // pipeline负责业务处理器编排，在创建时初始化
         pipeline = newChannelPipeline();
     }
 
@@ -116,6 +118,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     }
 
     /**
+     * 创建NioServerSocketChannel对应的ChannelPipeline
      * Returns a new {@link DefaultChannelPipeline} instance.
      */
     protected DefaultChannelPipeline newChannelPipeline() {

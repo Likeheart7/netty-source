@@ -84,7 +84,9 @@ import io.netty.util.concurrent.EventExecutor;
  * what fundamental differences they have, how they flow in a  pipeline,  and how to handle
  * the operation in your application.
  * 对ChannelHandler的一层抽象，一般在ChannelPipeline中的ChannelHandler实际上都是被ChannelHandlerContext包裹的
- * 用于处理ChannelHandler的生命周期事件，将其从ChannelHandler具体的业务逻辑中解耦
+ * 1. 处理ChannelHandler的生命周期事件，将其从ChannelHandler具体的业务逻辑中解耦
+ * 2. 维护链表结构
+ * 3. 维护ChannelHandler的状态(INIT, ADD_COMPLETE, REMOVE_COMPLETE)
  */
 public interface ChannelHandlerContext extends AttributeMap, ChannelInboundInvoker, ChannelOutboundInvoker {
 

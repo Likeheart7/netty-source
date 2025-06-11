@@ -198,6 +198,14 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return this;
     }
 
+    /**
+     * 一个在NioServerSocketChannel创建时默认注册在其上的处理器
+     * 在有连接进来，为其创建了NioSocketChannel后，会触发本类的channelRead方法
+     * 主要做三件事情
+     * 1. 将启动时配置的childHandler配置到到NioSocketChannel
+     * 2. 配置NioSocketChannel的TCP参数
+     * 3. 将NioSocketChannel注册到从Reactor的Selector上，从Reactor有多个NioEventLoop，选择其中一个NioEventLoop与新建的NioSocketChannel绑定
+     */
     private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
 
         private final EventLoopGroup childGroup;
