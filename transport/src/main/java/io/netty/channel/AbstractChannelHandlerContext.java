@@ -322,6 +322,9 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
     }
 
+    /**
+     * 一直向下找到下一个对ExceptionCaught感兴趣的Handler
+     */
     @Override
     public ChannelHandlerContext fireExceptionCaught(final Throwable cause) {
         invokeExceptionCaught(findContextInbound(MASK_EXCEPTION_CAUGHT), cause);
@@ -353,6 +356,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     private void invokeExceptionCaught(final Throwable cause) {
         if (invokeHandler()) {
             try {
+                // 调用Handler是实现的exceptionCaught
                 handler().exceptionCaught(this, cause);
             } catch (Throwable error) {
                 if (logger.isDebugEnabled()) {
@@ -419,6 +423,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     @Override
     public ChannelHandlerContext fireChannelRead(final Object msg) {
+        // 找到下一个节点，执行invokeChannelRead，所以会一直执行到没有调用fireChannelRead的Handler(默认是TailContext)
         invokeChannelRead(findContextInbound(MASK_CHANNEL_READ), msg);
         return this;
     }
@@ -426,9 +431,11 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     static void invokeChannelRead(final AbstractChannelHandlerContext next, Object msg) {
         final Object m = next.pipeline.touch(ObjectUtil.checkNotNull(msg, "msg"), next);
         EventExecutor executor = next.executor();
+        // 如果是EventLoop线程调用的，直接执行
         if (executor.inEventLoop()) {
             next.invokeChannelRead(m);
         } else {
+            // 否则丢到异步任务队列，这样可以保证执行流程全部在NioEventLoop中串行执行
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -443,9 +450,12 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             try {
                 // DON'T CHANGE
                 // Duplex handlers implements both out/in interfaces causing a scalability issue
+                // 双工通道实现了Out和In接口造成了一个可扩展性问题
                 // see https://bugs.openjdk.org/browse/JDK-8180450
+                // 拿到自己包裹的Handler
                 final ChannelHandler handler = handler();
                 final DefaultChannelPipeline.HeadContext headContext = pipeline.head;
+                // 如果是头节点，执行头节点的的逻辑
                 if (handler == headContext) {
                     headContext.channelRead(this, msg);
                 } else if (handler instanceof ChannelDuplexHandler) {
@@ -454,6 +464,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
                     ((ChannelInboundHandler) handler).channelRead(this, msg);
                 }
             } catch (Throwable t) {
+                // 如果出现异常
                 invokeExceptionCaught(t);
             }
         } else {
@@ -897,6 +908,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
             // see https://bugs.openjdk.org/browse/JDK-8180450
             final ChannelHandler handler = handler();
             final DefaultChannelPipeline.HeadContext headContext = pipeline.head;
+            // 如果是HeadContext，直接通过HeadContext内的unsafe写出
             if (handler == headContext) {
                 headContext.write(this, msg, promise);
             } else if (handler instanceof ChannelDuplexHandler) {
@@ -956,6 +968,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
                 ((ChannelOutboundHandler) handler).flush(this);
             }
         } catch (Throwable t) {
+            // 在写出的时候发生的异常实际上跟写入时的流转方向是一样的，默认是TailContext
             invokeExceptionCaught(t);
         }
     }
@@ -976,7 +989,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
     }
 
-    // inboundHandler调用writeAndFlush时会通过TailContext#writeAndFlush走到这里
+    // inboundHandler调用ctx.writeAndFlush时会走到这里
     private void write(Object msg, boolean flush, ChannelPromise promise) {
         ObjectUtil.checkNotNull(msg, "msg");
         try {
@@ -991,6 +1004,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         }
 
         // 找到Pipeline中下一个OutBoundHandler
+        // 最后会走到HeadContext
         final AbstractChannelHandlerContext next = findContextOutbound(flush ?
                 (MASK_WRITE | MASK_FLUSH) : MASK_WRITE);
         final Object m = pipeline.touch(msg, next);
@@ -999,6 +1013,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         if (executor.inEventLoop()) {
             // 调用writeAndFlush时，该参数就是true
             if (flush) {
+                // 如果是writeAndFlush方法调用过来的，就是true
                 next.invokeWriteAndFlush(m, promise);
             } else {
                 next.invokeWrite(m, promise);
@@ -1177,6 +1192,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
      */
     private boolean invokeHandler() {
         // Store in local variable to reduce volatile reads.
+        // 保存到一个局部变量以减少volatile读
         int handlerState = this.handlerState;
         return handlerState == ADD_COMPLETE || (!ordered && handlerState == ADD_PENDING);
     }

@@ -905,6 +905,11 @@ public class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    /**
+     * 实际上就是从headContext开始调用channelRead方法
+     * @param msg
+     * @return
+     */
     @Override
     public final ChannelPipeline fireChannelRead(Object msg) {
         // 执行netty系统ChannelHandler和用户添加定制的ChannelHandler，ChannelHandler再根据网络事件的类型，调度并执行
@@ -1172,6 +1177,7 @@ public class DefaultChannelPipeline implements ChannelPipeline {
      * Called once a message hit the end of the {@link ChannelPipeline} without been handled by the user
      * in {@link ChannelInboundHandler#channelRead(ChannelHandlerContext, Object)}. This method is responsible
      * to call {@link ReferenceCountUtil#release(Object)} on the given msg at some point.
+     * 只是记录一个日志然后丢弃了消息，防止内存泄漏
      */
     protected void onUnhandledInboundMessage(Object msg) {
         try {
@@ -1287,6 +1293,9 @@ public class DefaultChannelPipeline implements ChannelPipeline {
             onUnhandledInboundException(cause);
         }
 
+        /**
+         * 如果前面所有的Handler都调用了fireChannelRead，那么会一直调用到这个方法
+         */
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) {
             onUnhandledInboundMessage(ctx, msg);

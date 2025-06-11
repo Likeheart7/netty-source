@@ -110,6 +110,7 @@ public class ChannelOutboundHandlerAdapter extends ChannelHandlerAdapter impleme
     @Skip
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+     // 默认实现就是通过该方法继续找到下一个outboundHandler
         ctx.write(msg, promise);
     }
 

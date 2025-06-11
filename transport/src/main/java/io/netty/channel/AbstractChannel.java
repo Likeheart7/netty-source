@@ -866,6 +866,10 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
         }
 
+        /**
+         * write方法实际上只是将数据放到ChannelOutboundBuffer的实例中，
+         * 调用flush时才会通过ChannelOutboundBuffer将数据写出
+         */
         @Override
         public final void write(Object msg, ChannelPromise promise) {
             assertEventLoop();
