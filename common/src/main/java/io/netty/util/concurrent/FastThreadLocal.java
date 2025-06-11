@@ -43,6 +43,7 @@ import static io.netty.util.internal.InternalThreadLocalMap.VARIABLES_TO_REMOVE_
  *
  * @param <V> the type of the thread-local variable
  * @see ThreadLocal
+ * 针对ThreadLocal的优化，使用InternalThreadLocalMap存储数据，所以核心优化实际上在InternalThreadLocalMap和ThreadLocalMap的差异
  */
 public class FastThreadLocal<V> {
 
@@ -206,8 +207,11 @@ public class FastThreadLocal<V> {
      * Set the value for the current thread and returns the old value.
      */
     public V getAndSet(V value) {
+        // value是否为默认值
         if (value != InternalThreadLocalMap.UNSET) {
+            // 获取当前线程的InternalThreadLocalMap
             InternalThreadLocalMap threadLocalMap = InternalThreadLocalMap.get();
+            // 将InternalThreadLocalMap中的数据替换为新的value
             return setKnownNotUnset(threadLocalMap, value);
         }
         return removeAndGet(InternalThreadLocalMap.getIfSet());

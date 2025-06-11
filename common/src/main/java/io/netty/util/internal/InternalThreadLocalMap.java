@@ -61,6 +61,7 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     public static final Object UNSET = new Object();
 
     /** Used by {@link FastThreadLocal} */
+    // 基于数组，可以直接用索引查询，时间复杂度O(1)
     private Object[] indexedVariables;
 
     // Core thread-locals
@@ -111,6 +112,7 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
 
     public static InternalThreadLocalMap get() {
         Thread thread = Thread.currentThread();
+        // 当前线程是否为FastThreadLocalThread，决定下一步
         if (thread instanceof FastThreadLocalThread) {
             return fastGet((FastThreadLocalThread) thread);
         } else {
@@ -119,6 +121,7 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
     }
 
     private static InternalThreadLocalMap fastGet(FastThreadLocalThread thread) {
+        // 获取 FastThreadLocalThread 的 threadLocalMap 属性
         InternalThreadLocalMap threadLocalMap = thread.threadLocalMap();
         if (threadLocalMap == null) {
             thread.setThreadLocalMap(threadLocalMap = new InternalThreadLocalMap());
@@ -126,6 +129,7 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return threadLocalMap;
     }
 
+    // 从 JDK 原生 ThreadLocal 中获取 InternalThreadLocalMap
     private static InternalThreadLocalMap slowGet() {
         InternalThreadLocalMap ret = slowThreadLocalMap.get();
         if (ret == null) {
@@ -348,6 +352,9 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         return UNSET;
     }
 
+    /**
+     * 扩容
+     */
     private void expandIndexedVariableTableAndSet(int index, Object value) {
         Object[] oldArray = indexedVariables;
         final int oldCapacity = oldArray.length;
