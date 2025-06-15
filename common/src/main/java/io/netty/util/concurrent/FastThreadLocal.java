@@ -61,6 +61,7 @@ import static io.netty.util.internal.InternalThreadLocalMap.VARIABLES_TO_REMOVE_
  *  谈一谈这种设计的一个重大缺陷：
  *      FastThreadLocal.index是全局递增，即使当前线程只使用了一个变量，如果这个变量的 index = 8192，它仍然要分配一个8192大小的数组；
  *      本质上是追求极端性能的代价，只能说索引寻值的性能>>>线性探测
+ *      也正是因为这种数组膨胀的可能性，也就更依赖于魔法槽位0来优化removeAll的清理操作
  *  </pre>
  *  相关类见：{@link FastThreadLocalThread}、{@link InternalThreadLocalMap}
  * @param <V> the type of the thread-local variable
