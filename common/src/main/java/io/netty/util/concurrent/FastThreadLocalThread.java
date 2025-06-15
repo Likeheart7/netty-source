@@ -21,6 +21,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 
 /**
  * A special {@link Thread} that provides fast access to {@link FastThreadLocal} variables.
+ * 对Thread类的包装，在包装中含有InternalThreadLocalMap实例
  */
 public class FastThreadLocalThread extends Thread {
 
@@ -29,6 +30,7 @@ public class FastThreadLocalThread extends Thread {
     // This will be set to true if we have a chance to wrap the Runnable.
     private final boolean cleanupFastThreadLocals;
 
+    // 对应Thread中的ThreadLocalMap threadLocals
     private InternalThreadLocalMap threadLocalMap;
 
     public FastThreadLocalThread() {

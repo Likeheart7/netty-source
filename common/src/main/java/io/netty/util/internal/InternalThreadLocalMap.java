@@ -43,8 +43,10 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
             new ThreadLocal<InternalThreadLocalMap>();
     private static final AtomicInteger nextIndex = new AtomicInteger();
     // Internal use only.
+    // 在类构建的时候，调用方法初始为0，存放当前线程所有已注册 FastThreadLocal 实例
     public static final int VARIABLES_TO_REMOVE_INDEX = nextVariableIndex();
 
+    // 默认初始大小
     private static final int DEFAULT_ARRAY_LIST_INITIAL_CAPACITY = 8;
     private static final int ARRAY_LIST_CAPACITY_EXPAND_THRESHOLD = 1 << 30;
     // Reference: https://hg.openjdk.java.net/jdk8/jdk8/jdk/file/tip/src/share/classes/java/util/ArrayList.java#l229
@@ -62,6 +64,10 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
 
     /** Used by {@link FastThreadLocal} */
     // 基于数组，可以直接用索引查询，时间复杂度O(1)
+    // 在这个数组中，0索引位置是Set<FastThreadLocal<?>>，从索引1开始存储value
+    // 索引0存放Set<FastThreadLocal>跟取值没什么关系，主要是记录当前线程真正“注册过”的 FastThreadLocal实例，
+    // 在removeAll这种清理资源、防止内存泄露的情况下生效，毕竟遍历数组来remove的话，效率偏低
+    // 本质上就是为了将 removeAll() 从 O(n) 降到 O(1)，极致的性能优化
     private Object[] indexedVariables;
 
     // Core thread-locals
@@ -104,6 +110,7 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
 
     public static InternalThreadLocalMap getIfSet() {
         Thread thread = Thread.currentThread();
+        // 如果是FastThreadLocalThread，才走InternalThreadLocalMap快速查询
         if (thread instanceof FastThreadLocalThread) {
             return ((FastThreadLocalThread) thread).threadLocalMap();
         }
@@ -152,6 +159,12 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         slowThreadLocalMap.remove();
     }
 
+    /**
+     * 因为是静态方法+AtomicInteger，所以每一个FastThreadLocal的index一定是唯一的
+     * 也正是因为这个原因，也可能出现极端情况下，某一个线程因为其他线程在之前分配过很多FastThreadLocal，
+     * 导致自己要存放的第一个FastThreadLocal的index就非常大，而由于是基于直接索引查找的，所以会直接扩容到
+     * 大于这个index的情况，就出现某个InternalThreadLocalMap只存很少的数据，但是却申请了一个巨大的数组(length > index)
+     */
     public static int nextVariableIndex() {
         int index = nextIndex.getAndIncrement();
         if (index >= ARRAY_LIST_CAPACITY_MAX_SIZE || index < 0) {
@@ -169,6 +182,10 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
         indexedVariables = newIndexedVariableTable();
     }
 
+    /**
+     * 构造时调用
+     * 初始化一个长度为32的Object数组，填满UNSET
+     */
     private static Object[] newIndexedVariableTable() {
         Object[] array = new Object[INDEXED_VARIABLE_TABLE_INITIAL_SIZE];
         Arrays.fill(array, UNSET);
@@ -343,17 +360,21 @@ public final class InternalThreadLocalMap extends UnpaddedInternalThreadLocalMap
      */
     public Object getAndSetIndexedVariable(int index, Object value) {
         Object[] lookup = indexedVariables;
+        // 容量足够
         if (index < lookup.length) {
+            // 取出旧值
             Object oldValue = lookup[index];
+            // 直接给指定索引设置值，时间复杂度O(1)
             lookup[index] = value;
             return oldValue;
         }
+        // 容量不足，扩容+设置
         expandIndexedVariableTableAndSet(index, value);
         return UNSET;
     }
 
     /**
-     * 扩容
+     * 扩容并设置
      */
     private void expandIndexedVariableTableAndSet(int index, Object value) {
         Object[] oldArray = indexedVariables;

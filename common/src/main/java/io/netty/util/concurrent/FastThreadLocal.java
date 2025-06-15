@@ -40,10 +40,30 @@ import static io.netty.util.internal.InternalThreadLocalMap.VARIABLES_TO_REMOVE_
  * a special field to store the necessary state.  An access by any other kind of thread falls back to a regular
  * {@link ThreadLocal}.
  * </p>
- *
- * @param <V> the type of the thread-local variable
- * @see ThreadLocal
+ * <pre>
  * 针对ThreadLocal的优化，使用InternalThreadLocalMap存储数据，所以核心优化实际上在InternalThreadLocalMap和ThreadLocalMap的差异
+ * 原生ThreadLocal原理：
+ * 1. 在Thread中携带一个Thread$ThreadLocalMap的实例，以ThreadLocal为键，value为值，键为弱引用，帮助回收，但是依然依赖remove方法
+ * 2. ThreadLocalMap本身是一个使用线性探测法的哈希表，底层采用数组存储数据，可以理解成一个键是ThreadLocal的Map
+ *    线性探测的意思是：如果当前索引值已经有数据存放，就移动到下一个索引，直到有空的位置用来存放。HashMap的方式叫拉链法
+ *    之所以netty需要优化是因为在数据密集时，很容易出现hash冲突，这就会导致需要O(n)的时间寻找条目(逐个，直到找到或找到null)
+ * 优化核心是{@link FastThreadLocalThread}和{@link InternalThreadLocalMap}类，包括：
+ * 1. 将ThreadLocalMap的线性探测改为索引寻值
+ * 2. 解决了Threadlocal生命周期管理复杂的问题
+ *
+ * 总结：
+ *  通过FastThreadLocalThread维护InternalThreadLocalMap实例，让每一个FastThreadLocal维护一个从InternalThreadLocalMap获取的的index，
+ *  表示自己的数据存在其内部的数组的索引，以实现O(1)级别的get。
+ *  并且通过在InterThreadLocalMap中的数组索引为0的位置维护Set&lt;FastThreadLocal&gt;，将removeAll这种批量清理操作的开销降到O(1)，
+ *  尽管这种方式会将remove单个的成本略微提高，属于是将removeAll的成本分摊到remove操作了。
+ *  </pre>
+ *  <pre>
+ *  谈一谈这种设计的一个重大缺陷：
+ *      FastThreadLocal.index是全局递增，即使当前线程只使用了一个变量，如果这个变量的 index = 8192，它仍然要分配一个8192大小的数组；
+ *      本质上是追求极端性能的代价，只能说索引寻值的性能>>>线性探测
+ *  </pre>
+ *  相关类见：{@link FastThreadLocalThread}、{@link InternalThreadLocalMap}
+ * @param <V> the type of the thread-local variable
  */
 public class FastThreadLocal<V> {
 
@@ -98,15 +118,19 @@ public class FastThreadLocal<V> {
 
     @SuppressWarnings("unchecked")
     private static void addToVariablesToRemove(InternalThreadLocalMap threadLocalMap, FastThreadLocal<?> variable) {
+        // 获取下标为0的元素
         Object v = threadLocalMap.indexedVariable(VARIABLES_TO_REMOVE_INDEX);
         Set<FastThreadLocal<?>> variablesToRemove;
         if (v == InternalThreadLocalMap.UNSET || v == null) {
+            // 创建FastThreadLocal类型的集合
             variablesToRemove = Collections.newSetFromMap(new IdentityHashMap<FastThreadLocal<?>, Boolean>());
+            // 将set集合填充到0索引
             threadLocalMap.setIndexedVariable(VARIABLES_TO_REMOVE_INDEX, variablesToRemove);
         } else {
+            // 如果不是默认值/null，说明已经创建过，直接强转成Set
             variablesToRemove = (Set<FastThreadLocal<?>>) v;
         }
-
+        // 加到集合里
         variablesToRemove.add(variable);
     }
 
@@ -124,9 +148,11 @@ public class FastThreadLocal<V> {
         variablesToRemove.remove(variable);
     }
 
+    // 每一个FastThreadLocal对象都有一个从InternalThreadLocalMap生成的index值，表示自己在这个Map中存数据的索引
     private final int index;
 
     public FastThreadLocal() {
+        // 构造时获取一个索引，代表下一个可以操作的索引位置
         index = InternalThreadLocalMap.nextVariableIndex();
     }
 
@@ -136,11 +162,11 @@ public class FastThreadLocal<V> {
     @SuppressWarnings("unchecked")
     public final V get() {
         InternalThreadLocalMap threadLocalMap = InternalThreadLocalMap.get();
-        Object v = threadLocalMap.indexedVariable(index);
+        Object v = threadLocalMap.indexedVariable(index); // 直接从索引拿值O(1)
         if (v != InternalThreadLocalMap.UNSET) {
             return (V) v;
         }
-
+        // 如果是默认对象，需要初始化
         return initialize(threadLocalMap);
     }
 
@@ -224,6 +250,7 @@ public class FastThreadLocal<V> {
         if (value != InternalThreadLocalMap.UNSET) {
             return setKnownNotUnset(threadLocalMap, value);
         }
+        // 如果要设置的值是UNSET，直接清理
         return removeAndGet(threadLocalMap);
     }
 
@@ -232,8 +259,10 @@ public class FastThreadLocal<V> {
      */
     @SuppressWarnings("unchecked")
     private V setKnownNotUnset(InternalThreadLocalMap threadLocalMap, V value) {
+        // 找到数组下标index，设置新的value
         V old = (V) threadLocalMap.getAndSetIndexedVariable(index, value);
         if (old == UNSET) {
+            // 将FastThreadLocal对象保存到待清理的集合里
             addToVariablesToRemove(threadLocalMap, this);
             return null;
         }
@@ -283,8 +312,11 @@ public class FastThreadLocal<V> {
             return null;
         }
 
+        // 将指定索引的值置为UNSET，并返回旧值
         Object v = threadLocalMap.removeIndexedVariable(index);
+        // 如果旧值不是UNSET，说明之前存过数据，也就意味着索引0的Set中有其对应的FastThreadLocal
         if (v != InternalThreadLocalMap.UNSET) {
+            // 将其对应的FastThreadLocal对象从集合中移除
             removeFromVariablesToRemove(threadLocalMap, this);
             try {
                 onRemoval((V) v);
