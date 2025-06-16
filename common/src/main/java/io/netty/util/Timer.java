@@ -28,6 +28,7 @@ public interface Timer {
     /**
      * Schedules the specified {@link TimerTask} for one-time execution after
      * the specified delay.
+     * 创建任务
      *
      * @return a handle which is associated with the specified task
      *
@@ -40,6 +41,7 @@ public interface Timer {
     /**
      * Releases all resources acquired by this {@link Timer} and cancels all
      * tasks which were scheduled but not executed yet.
+     * 取消所有未执行任务
      *
      * @return the handles associated with the tasks which were canceled by
      *         this method
