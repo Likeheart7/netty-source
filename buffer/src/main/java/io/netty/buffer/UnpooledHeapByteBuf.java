@@ -226,9 +226,7 @@ public class UnpooledHeapByteBuf extends AbstractReferenceCountedByteBuf {
         return out.write((ByteBuffer) tmpBuf.clear().position(index).limit(index + length), position);
     }
 
-    /**
-     * 实际上和父类的逻辑完全一致，重写是防止父类更改、未来拓展以及是用于JIT内联
-     */
+
     @Override
     public int readBytes(GatheringByteChannel out, int length) throws IOException {
         checkReadableBytes(length);
