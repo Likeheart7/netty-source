@@ -446,7 +446,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     }
 
     // 本类很多方法强转调用是因为直接调用 handler.channelRead() 是一种多态调用，JIT 对于双工接口可能优化不足，性能有损失。
-    // 本质上是invoke_interface在多接口下相对于invoke_virtual的性能有差异，JIT更难做内联缓存和内联优化
+    // 本质上是invoke_interface在接口多个实现下相对于invoke_virtual的性能有差异，JIT更难做内联缓存和内联优化
     private void invokeChannelRead(Object msg) {
         if (invokeHandler()) {
             try {
